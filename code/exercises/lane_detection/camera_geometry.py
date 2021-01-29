@@ -9,7 +9,10 @@ def get_intrinsic_matrix(field_of_view_deg, image_width, image_height):
     field_of_view_rad = field_of_view_deg * np.pi/180
     alpha = (image_width / 2.0) / np.tan(field_of_view_rad / 2.)
     # TODO step 1: Complete this function
-    raise NotImplementedError
+    # raise NotImplementedError
+    return np.array([[alpha, 0, image_width/2],
+                     [0, alpha, image_height/2],
+                     [0, 0, 1]])
 
 def project_polyline(polyline_world, trafo_world_to_cam, K):
     """
@@ -20,11 +23,11 @@ def project_polyline(polyline_world, trafo_world_to_cam, K):
     polyline_world : array_like, shape (M,3)
         Each row of this array is a vertex (x,y,z) of the polyline.
     trafo_world_to_cam : array_like, shape (4,4)
-        Transformation matrix, that maps vectors (x_world, y_world, z_world, 1) 
+        Transformation matrix, that maps vectors (x_world, y_world, z_world, 1)
         to vectors (x_cam, y_cam, z_cam, 1).
     K: array_like, shape (3,3)
-        Intrinsic matrix of  the camera.   
-    
+        Intrinsic matrix of  the camera.
+
     Returns:
     --------
     uv : ndarray, shape (M,2)
@@ -32,7 +35,21 @@ def project_polyline(polyline_world, trafo_world_to_cam, K):
         First column is u, second column is v
     """
     # TODO step 1: Write this function
-    raise NotImplementedError
+    # raise NotImplementedError
+
+    # append ones
+    m = polyline_world.shape[0]
+    ones = np.ones((m, 4))
+    ones[:, :-1] = polyline_world
+
+    # compute project matrix
+    proj_mat = K @ trafo_world_to_cam[:3, :]
+    uv = (proj_mat @ ones.T).T
+
+    # convert to eucliden
+    u = uv[:, 0] / uv[:, 2]
+    v = uv[:, 1] / uv[:, 2]
+    return np.stack((u, v)).T
 
 
 class CameraGeometry(object):
@@ -63,12 +80,12 @@ class CameraGeometry(object):
     def uv_to_roadXYZ_camframe(self,u,v):
         """
         Inverse perspective mapping from pixel coordinates to 3d coordinates.
-        
+
         Parameters
         ----------
         u,v: Both float
             Pixel coordinates of some part of the road.
-        
+
         Returns:
         --------
         XYZ: array_like, shape(3,)
@@ -77,7 +94,7 @@ class CameraGeometry(object):
         """
         # TODO step 2: Write this function
         raise NotImplementedError
-    
+
     def uv_to_roadXYZ_roadframe(self,u,v):
         r_camframe = self.uv_to_roadXYZ_camframe(u,v)
         return self.camframe_to_roadframe(r_camframe)
@@ -96,7 +113,7 @@ class CameraGeometry(object):
             Distance thereshold in meters. For the grid, only pixel coordinates [u,v]
             are considered that depict parts of the road plane that are no more than
             a distance `dist` away along the road.
-        
+
         Returns:
         --------
         cut_v: float
@@ -115,7 +132,7 @@ class CameraGeometry(object):
         """
         Find cut_v such that pixels with v<cut_v are irrelevant for polynomial fitting.
         Everything that is further than `dist` along the road is considered irrelevant.
-        """        
+        """
         trafo_road_to_cam = np.linalg.inv(self.trafo_cam_to_road)
         point_far_away_on_road = trafo_road_to_cam @ np.array([0,0,dist,1])
         uv_vec = self.intrinsic_matrix @ point_far_away_on_road[:3]
